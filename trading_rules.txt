@@ -1,0 +1,56 @@
+WTT_WAVERIDER TRADING RULES
+================================
+
+ENTRY RULES:
+------------
+1. LONG ENTRY: Enter long position when a green triangle signal appears
+   - Signal conditions: Price above all EMAs + Volume OR RSI oversold
+   - Entry price: Closing price at signal
+
+2. SHORT ENTRY: Enter short position when a red triangle signal appears
+   - Signal conditions: Price below all EMAs + Volume OR RSI overbought
+   - Entry price: Closing price at signal
+
+EXIT RULES:
+-----------
+1. SHORT POSITION EXITS:
+   - Exit when a RED dot appears right after an ORANGE dot
+   - Exit when a RED dot appears right after a RED dot
+   - Exit when a RED X marker appears (higher high after short signal)
+
+2. LONG POSITION EXITS:
+   - Exit when a GREEN dot appears right after an ORANGE dot
+   - Exit when a GREEN dot appears right after a GREEN dot
+   - Exit when a GREEN X marker appears (lower low after long signal)
+
+RSI DOT INTERPRETATION:
+----------------------
+- RED dots: RSI overbought conditions (momentum reversal)
+- GREEN dots: RSI oversold conditions (momentum reversal)
+- ORANGE dots: Extreme price points during overbought/oversold conditions
+
+X MARKER INTERPRETATION:
+-----------------------
+- RED X markers: Higher highs after short signals (trend continuation)
+- GREEN X markers: Lower lows after long signals (trend continuation)
+
+POSITION MANAGEMENT:
+-------------------
+- Use stop loss at entry price (break-even)
+- Take profit at 2:1 risk/reward ratio
+- Maximum position size: 2% of account per trade
+- Maximum open positions: 1 long, 1 short
+
+RISK MANAGEMENT:
+----------------
+- Never add to losing positions
+- Close all positions if market conditions change significantly
+- Monitor HUD table for volume status and RSI values
+- Use X markers to confirm trend continuation
+
+PERFORMANCE TRACKING:
+--------------------
+- Monitor win rates displayed in HUD table
+- Track ATR trend for volatility assessment
+- Use current signal indicator to confirm active positions
+- Review RSI dots for extreme price points (orange dots indicate extremes) 

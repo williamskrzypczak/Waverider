@@ -1,0 +1,346 @@
+//@version=5
+indicator("WTT_Waverider_R5.6", overlay=true)
+
+// =============================================================================
+// REVISION HISTORY
+// =============================================================================
+// R1.0 - Initial version with 21-period EMA, 50-period EMA, and middle MA
+// R1.1 - Added plot visibility controls with default state off
+// R1.2 - Added dynamic price line coloring based on EMA position
+// R1.3 - Increased price line width to 2
+// R1.4 - Added triangle signals for long/short entry points
+// R1.5 - Modified signals to show only first occurrence
+// R1.6 - Added volume filter for entry signals
+// R1.7 - Added Heads Up Display table with volume monitoring
+// R1.8 - Enhanced HUD with colored text for volume levels
+// R2.0 - Made triangles and table text larger
+// R2.1 - Added RSI dots for overbought/oversold conditions
+// R2.2 - Added RSI filter for entry signals
+// R2.3 - Added RSI value to HUD table
+// R2.4 - Added "Heads Up Display" header spanning two columns
+// R2.5 - Streamlined table layout combining volume name/value
+// R2.6 - Added vibrant table styling
+// R2.7 - Reverted to text-only highlighting
+// R2.8 - Adjusted volume and RSI thresholds for better signal frequency
+// R2.9 - Made signal logic more permissive (Volume OR RSI, no trend requirement)
+// R3.0 - Added performance statistics and win rate tracking
+// R3.1 - Improved performance with ATR-based targets, trend confirmation, time exits
+// R3.2 - Made RSI dots tiny
+// R3.3 - Added ATR trend tracking to HUD table
+// R3.4 - Removed trend confirmation for more permissive signals
+// R3.5 - Added comprehensive exit strategies
+// R3.6 - Simplified to RSI momentum exit only
+// R3.7 - Cleaned up unused code
+// R4.0 - Added trailing stop lines at RSI dot levels
+// R4.1 - Fixed trailing stop visibility
+// R4.2 - Changed trailing stops to current price
+// R4.3 - Made trailing stops current signal only
+// R4.4 - Made trailing stops persist until new signal
+// R4.5 - Added RSI dot extension lines
+// R4.6 - Removed previous trailing stop code
+// R4.7 - Made RSI dot extension lines current signal only
+// R4.8 - Fixed RSI dot extension lines visibility
+// R4.9 - Changed RSI dots to horizontal lines, removed extension lines
+// R5.0 - Added extreme price highlighting for RSI dots
+// R5.1 - Made yellow extreme dots bigger
+// R5.2 - Changed extreme dots to egg yolk color and smaller size
+// R5.3 - Made table text smaller and added current signal row
+// R5.4 - Made current signal persist until next signal fires
+// R5.5 - Made table text slightly bigger
+// R5.6 - Changed "ATR Trend" to "Trend" in table
+// R5.7 - Added alert conditions for long and short signals with closing price
+// R5.8 - Added higher high X markers after short signals
+// R5.9 - Added lower low X markers after long signals
+// R5.10 - Changed alert conditions to plain alerts
+// =============================================================================
+
+// Input parameters
+ema1_length = input.int(21, title="EMA 1 Length", minval=1)
+ema2_length = input.int(50, title="EMA 2 Length", minval=1)
+show_ema1 = input.bool(false, title="Show EMA 1", inline="EMA1")
+show_ema2 = input.bool(false, title="Show EMA 2", inline="EMA2")
+show_middle = input.bool(false, title="Show Middle MA", inline="Middle")
+volume_multiplier = input.float(1.5, title="Volume Threshold Multiplier", minval=1.0, step=0.1, inline="Volume")
+volume_length = input.int(20, title="Volume Average Period", minval=1, inline="Volume")
+rsi_length = input.int(14, title="RSI Length", minval=1, inline="RSI")
+rsi_overbought = input.int(60, title="RSI Overbought Level", minval=50, maxval=100, inline="RSI")
+rsi_oversold = input.int(40, title="RSI Oversold Level", minval=0, maxval=50, inline="RSI")
+
+// RSI extreme price tracking variables
+var float rsi_overbought_high = na
+var float rsi_oversold_low = na
+var bool rsi_overbought_active = false
+var bool rsi_oversold_active = false
+
+// Higher high tracking after short signal
+var bool track_higher_highs = false
+var float last_high = na
+
+// Lower low tracking after long signal
+var bool track_lower_lows = false
+var float last_low = na
+
+// Calculate EMAs
+ema1 = ta.ema(close, ema1_length)
+ema2 = ta.ema(close, ema2_length)
+
+// Calculate middle MA (average of EMA1 and EMA2)
+middle_ma = (ema1 + ema2) / 2
+
+// Calculate volume threshold
+avg_volume = ta.sma(volume, volume_length)
+volume_threshold = avg_volume * volume_multiplier
+high_volume = volume > volume_threshold
+
+// Calculate RSI
+rsi_value = ta.rsi(close, rsi_length)
+rsi_overbought_signal = rsi_value > rsi_overbought
+rsi_oversold_signal = rsi_value < rsi_oversold
+
+// Determine price line color based on position relative to EMAs
+price_color = if close > ema1 and close > ema2 and close > middle_ma
+    color.teal
+else if close < ema1 and close < ema2 and close < middle_ma
+    color.maroon
+else
+    color.white
+
+// Plot the EMAs (only if enabled)
+plot(show_ema1 ? ema1 : na, title="EMA 1 (21)", color=color.blue, linewidth=2)
+plot(show_ema2 ? ema2 : na, title="EMA 2 (50)", color=color.red, linewidth=2)
+plot(show_middle ? middle_ma : na, title="Middle MA", color=color.green, linewidth=2)
+
+// Plot price line with dynamic color
+plot(close, title="Price", color=price_color, linewidth=2)
+
+// Track RSI extreme prices
+if rsi_overbought_signal
+    rsi_overbought_active := true
+    if na(rsi_overbought_high) or high > rsi_overbought_high
+        rsi_overbought_high := high
+else
+    rsi_overbought_active := false
+    rsi_overbought_high := na
+
+if rsi_oversold_signal
+    rsi_oversold_active := true
+    if na(rsi_oversold_low) or low < rsi_oversold_low
+        rsi_oversold_low := low
+else
+    rsi_oversold_active := false
+    rsi_oversold_low := na
+
+
+
+
+
+// Generate long/short signals (only first occurrence)
+long_condition = close > ema1 and close > ema2 and close > middle_ma and (close[1] <= ema1[1] or close[1] <= ema2[1] or close[1] <= middle_ma[1])
+short_condition = close < ema1 and close < ema2 and close < middle_ma and (close[1] >= ema1[1] or close[1] >= ema2[1] or close[1] >= middle_ma[1])
+
+// Track signal state to show only first occurrence
+var bool long_active = false
+var bool short_active = false
+
+// Performance tracking variables
+var int long_signals = 0
+var int short_signals = 0
+var int long_wins = 0
+var int short_wins = 0
+var float long_entry_price = 0.0
+var float short_entry_price = 0.0
+var bool long_trade_active = false
+var bool short_trade_active = false
+
+
+
+// Generate signals (permissive approach)
+long_signal = long_condition and not long_active and (high_volume or rsi_oversold_signal)
+short_signal = short_condition and not short_active and (high_volume or rsi_overbought_signal)
+
+// Track performance when signals fire
+if long_signal
+    long_signals := long_signals + 1
+    long_entry_price := close
+    long_trade_active := true
+
+if short_signal
+    short_signals := short_signals + 1
+    short_entry_price := close
+    short_trade_active := true
+
+// Check for wins/losses with RSI momentum exit only
+if long_trade_active
+    // RSI overbought exit (momentum reversal)
+    rsi_exit_long = rsi_value > rsi_overbought
+    
+    if rsi_exit_long
+        long_wins := long_wins + 1
+        long_trade_active := false
+
+if short_trade_active
+    // RSI oversold exit (momentum reversal)
+    rsi_exit_short = rsi_value < rsi_oversold
+    
+    if rsi_exit_short
+        short_wins := short_wins + 1
+        short_trade_active := false
+
+// Reset signal state when condition changes
+if long_condition
+    long_active := true
+if short_condition
+    short_active := true
+
+// Reset when opposite signal occurs
+if short_condition
+    long_active := false
+if long_condition
+    short_active := false
+
+
+
+// Plot triangle signals
+plotshape(long_signal, title="Long Signal", location=location.belowbar, color=color.green, style=shape.triangleup, size=size.normal)
+plotshape(short_signal, title="Short Signal", location=location.abovebar, color=color.red, style=shape.triangledown, size=size.normal)
+
+// Plot higher high diamond markers
+plotshape(track_higher_highs and not na(last_high) and high > last_high, title="Higher High Diamond", location=location.abovebar, color=color.maroon, style=shape.diamond, size=size.small)
+
+// Plot lower low diamond markers
+plotshape(track_lower_lows and not na(last_low) and low < last_low, title="Lower Low Diamond", location=location.belowbar, color=color.teal, style=shape.diamond, size=size.small)
+
+// Plot RSI overbought/oversold dots with extreme price highlighting
+// Regular overbought dots (red, tiny)
+plotshape(rsi_overbought_signal and not (rsi_overbought_active and high == rsi_overbought_high), title="RSI Overbought Regular", location=location.abovebar, color=color.red, style=shape.circle, size=size.tiny)
+// Extreme overbought dots (egg yolk, tiny)
+plotshape(rsi_overbought_signal and rsi_overbought_active and high == rsi_overbought_high, title="RSI Overbought Extreme", location=location.abovebar, color=color.orange, style=shape.circle, size=size.tiny)
+
+// Regular oversold dots (green, tiny)
+plotshape(rsi_oversold_signal and not (rsi_oversold_active and low == rsi_oversold_low), title="RSI Oversold Regular", location=location.belowbar, color=color.green, style=shape.circle, size=size.tiny)
+// Extreme oversold dots (egg yolk, tiny)
+plotshape(rsi_oversold_signal and rsi_oversold_active and low == rsi_oversold_low, title="RSI Oversold Extreme", location=location.belowbar, color=color.orange, style=shape.circle, size=size.tiny)
+
+// Track higher highs after short signal
+if track_higher_highs and not na(last_high)
+    if high > last_high
+        last_high := high
+
+// Track lower lows after long signal
+if track_lower_lows and not na(last_low)
+    if low < last_low
+        last_low := low
+
+
+
+// Create Heads Up Display Table
+var table hud_table = table.new(position.top_right, 2, 7, bgcolor=color.new(color.purple, 80), border_width=2, border_color=color.blue)
+
+// Categorize volume levels (synchronized with signal threshold)
+volume_category = if volume < avg_volume * 0.8
+    "Low"
+else if volume > volume_threshold
+    "High"
+else
+    "Normal"
+
+// Set volume category color
+volume_color = if volume_category == "High"
+    color.green
+else if volume_category == "Low"
+    color.red
+else
+    color.yellow
+
+// Determine RSI text color
+rsi_text_color = if rsi_value > rsi_overbought
+    color.red
+else if rsi_value < rsi_oversold
+    color.green
+else
+    color.yellow
+
+// Calculate ATR trend
+atr_value = ta.atr(14)
+atr_prev = ta.atr(14)[1]
+atr_trend = if atr_value > atr_prev * 1.05
+    "Rising"
+else if atr_value < atr_prev * 0.95
+    "Falling"
+else
+    "Sideways"
+
+// Set ATR trend color
+atr_color = if atr_trend == "Rising"
+    color.red
+else if atr_trend == "Falling"
+    color.green
+else
+    color.yellow
+
+// Calculate performance percentages
+long_win_rate = long_signals > 0 ? (long_wins / long_signals) * 100 : 0.0
+short_win_rate = short_signals > 0 ? (short_wins / short_signals) * 100 : 0.0
+
+// Track current signal persistently
+var string current_signal = "NONE"
+
+// Update current signal when new signals fire
+if long_signal
+    current_signal := "LONG"
+    track_higher_highs := false  // Stop tracking higher highs
+    track_lower_lows := true      // Start tracking lower lows
+    last_low := low
+if short_signal
+    current_signal := "SHORT"
+    track_higher_highs := true   // Start tracking higher highs
+    track_lower_lows := false     // Stop tracking lower lows
+    last_high := high
+
+// Update table
+if barstate.islast
+    table.cell(hud_table, 0, 0, "Heads Up Display", text_color=color.white, bgcolor=color.new(color.blue, 20), text_size=size.normal)
+    table.cell(hud_table, 1, 0, "", text_color=color.white, bgcolor=color.new(color.blue, 20), text_size=size.normal)
+    table.cell(hud_table, 0, 1, "Volume Status", text_color=color.white, bgcolor=color.new(color.purple, 80), text_size=size.normal)
+    table.cell(hud_table, 1, 1, volume_category, text_color=volume_color, bgcolor=color.new(color.purple, 80), text_size=size.normal)
+    table.cell(hud_table, 0, 2, "RSI Value", text_color=color.white, bgcolor=color.new(color.purple, 80), text_size=size.normal)
+    table.cell(hud_table, 1, 2, str.tostring(math.round(rsi_value, 1)), text_color=rsi_text_color, bgcolor=color.new(color.purple, 80), text_size=size.normal)
+    table.cell(hud_table, 0, 3, "Trend", text_color=color.white, bgcolor=color.new(color.purple, 80), text_size=size.normal)
+    table.cell(hud_table, 1, 3, atr_trend, text_color=atr_color, bgcolor=color.new(color.purple, 80), text_size=size.normal)
+    table.cell(hud_table, 0, 4, "Long Win Rate", text_color=color.white, bgcolor=color.new(color.purple, 80), text_size=size.normal)
+    table.cell(hud_table, 1, 4, str.tostring(math.round(long_win_rate, 1)) + "% (" + str.tostring(long_wins) + "/" + str.tostring(long_signals) + ")", text_color=long_win_rate > 50 ? color.green : color.red, bgcolor=color.new(color.purple, 80), text_size=size.normal)
+    table.cell(hud_table, 0, 5, "Short Win Rate", text_color=color.white, bgcolor=color.new(color.purple, 80), text_size=size.normal)
+    table.cell(hud_table, 1, 5, str.tostring(math.round(short_win_rate, 1)) + "% (" + str.tostring(short_wins) + "/" + str.tostring(short_signals) + ")", text_color=short_win_rate > 50 ? color.green : color.red, bgcolor=color.new(color.purple, 80), text_size=size.normal)
+    table.cell(hud_table, 0, 6, "Current Signal", text_color=color.white, bgcolor=color.new(color.purple, 80), text_size=size.normal)
+    table.cell(hud_table, 1, 6, current_signal, text_color=current_signal == "LONG" ? color.green : current_signal == "SHORT" ? color.red : color.gray, bgcolor=color.new(color.purple, 80), text_size=size.normal)
+
+// Add labels for clarity (only if lines are enabled)
+if barstate.islast
+    if show_ema1
+        label.new(bar_index, ema1, "EMA 1 (21)", color=color.blue, textcolor=color.white, style=label.style_label_down)
+    if show_ema2
+        label.new(bar_index, ema2, "EMA 2 (50)", color=color.red, textcolor=color.white, style=label.style_label_down)
+    if show_middle
+        label.new(bar_index, middle_ma, "Middle MA", color=color.green, textcolor=color.white, style=label.style_label_down)
+
+// Create alerts for signal fires
+if long_signal
+    alert("WTT_Waverider: LONG signal fired at " + str.tostring(close))
+if short_signal
+    alert("WTT_Waverider: SHORT signal fired at " + str.tostring(close))
+
+// Create alerts for diamond markers
+if track_higher_highs and not na(last_high) and high > last_high
+    alert("WTT_Waverider: EXIT LONG - Higher High Diamond at " + str.tostring(high))
+if track_lower_lows and not na(last_low) and low < last_low
+    alert("WTT_Waverider: EXIT SHORT - Lower Low Diamond at " + str.tostring(low))
+
+// Create alerts for RSI dots
+if rsi_overbought_signal and not (rsi_overbought_active and high == rsi_overbought_high)
+    alert("WTT_Waverider: RSI OVERBOUGHT - Red Dot at " + str.tostring(close))
+if rsi_overbought_signal and rsi_overbought_active and high == rsi_overbought_high
+    alert("WTT_Waverider: RSI EXTREME OVERBOUGHT - Orange Dot at " + str.tostring(close))
+if rsi_oversold_signal and not (rsi_oversold_active and low == rsi_oversold_low)
+    alert("WTT_Waverider: RSI OVERSOLD - Green Dot at " + str.tostring(close))
+if rsi_oversold_signal and rsi_oversold_active and low == rsi_oversold_low
+    alert("WTT_Waverider: RSI EXTREME OVERSOLD - Orange Dot at " + str.tostring(close)) 
