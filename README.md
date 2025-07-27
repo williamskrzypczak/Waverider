@@ -32,12 +32,12 @@ A comprehensive Pine Script trading indicator for TradingView with EMA-based sig
 
 ## Files
 
-- `ema_indicator.pine` - Main indicator script (Pine Script v5)
+- `waverider.pine` - Main indicator script (Pine Script v5)
 - `trading_rules.txt` - Comprehensive trading rules and guidelines
 
 ## Installation
 
-1. Copy the `ema_indicator.pine` code
+1. Copy the `waverider.pine` code
 2. Open TradingView and go to Pine Editor
 3. Paste the code and click "Add to Chart"
 4. Configure parameters as needed

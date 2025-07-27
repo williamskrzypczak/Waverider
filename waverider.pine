@@ -1,5 +1,5 @@
 //@version=5
-indicator("WTT_Waverider_R5.6", overlay=true)
+indicator("Waverider_R5.6", overlay=true)
 
 // =============================================================================
 // REVISION HISTORY
