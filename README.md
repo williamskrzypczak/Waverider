@@ -32,12 +32,12 @@ A comprehensive Pine Script trading indicator for TradingView with EMA-based sig
 
 ## Files
 
-- `waverider.pine` - Main indicator script (Pine Script v5)
+- `WTT_Syzygy_Waverider_R5.6.pine` - Main indicator script (Pine Script v5)
 - `trading_rules.txt` - Comprehensive trading rules and guidelines
 
 ## Installation
 
-1. Copy the `waverider.pine` code
+1. Copy the `WTT_Syzygy_Waverider_R5.6.pine` code
 2. Open TradingView and go to Pine Editor
 3. Paste the code and click "Add to Chart"
 4. Configure parameters as needed

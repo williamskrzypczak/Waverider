@@ -1,5 +1,5 @@
 //@version=5
-indicator("Waverider_R5.6", overlay=true)
+indicator("WTT_Syzygy_Waverider_R5.6", overlay=true)
 
 // =============================================================================
 // REVISION HISTORY
@@ -52,6 +52,8 @@ indicator("Waverider_R5.6", overlay=true)
 // R5.8 - Added higher high X markers after short signals
 // R5.9 - Added lower low X markers after long signals
 // R5.10 - Changed alert conditions to plain alerts
+// R5.11 - Added individual alert toggle controls
+// R5.12 - Increased price line width to 3
 // =============================================================================
 
 // Input parameters
@@ -65,6 +67,12 @@ volume_length = input.int(20, title="Volume Average Period", minval=1, inline="V
 rsi_length = input.int(14, title="RSI Length", minval=1, inline="RSI")
 rsi_overbought = input.int(60, title="RSI Overbought Level", minval=50, maxval=100, inline="RSI")
 rsi_oversold = input.int(40, title="RSI Oversold Level", minval=0, maxval=50, inline="RSI")
+
+// Alert toggle controls
+show_long_alerts = input.bool(true, title="Long Signal Alerts", inline="Alerts")
+show_short_alerts = input.bool(true, title="Short Signal Alerts", inline="Alerts")
+show_diamond_alerts = input.bool(true, title="Diamond Exit Alerts", inline="Alerts")
+show_rsi_alerts = input.bool(true, title="RSI Dot Alerts", inline="Alerts")
 
 // RSI extreme price tracking variables
 var float rsi_overbought_high = na
@@ -111,7 +119,7 @@ plot(show_ema2 ? ema2 : na, title="EMA 2 (50)", color=color.red, linewidth=2)
 plot(show_middle ? middle_ma : na, title="Middle MA", color=color.green, linewidth=2)
 
 // Plot price line with dynamic color
-plot(close, title="Price", color=price_color, linewidth=2)
+plot(close, title="Price", color=price_color, linewidth=3)
 
 // Track RSI extreme prices
 if rsi_overbought_signal
@@ -205,10 +213,10 @@ plotshape(long_signal, title="Long Signal", location=location.belowbar, color=co
 plotshape(short_signal, title="Short Signal", location=location.abovebar, color=color.red, style=shape.triangledown, size=size.normal)
 
 // Plot higher high diamond markers
-plotshape(track_higher_highs and not na(last_high) and high > last_high, title="Higher High Diamond", location=location.abovebar, color=color.maroon, style=shape.diamond, size=size.small)
+plotshape(track_higher_highs and not na(last_high) and high > last_high, title="Higher High Diamond", location=location.abovebar, color=color.silver, style=shape.diamond, size=size.small)
 
 // Plot lower low diamond markers
-plotshape(track_lower_lows and not na(last_low) and low < last_low, title="Lower Low Diamond", location=location.belowbar, color=color.teal, style=shape.diamond, size=size.small)
+plotshape(track_lower_lows and not na(last_low) and low < last_low, title="Lower Low Diamond", location=location.belowbar, color=color.silver, style=shape.diamond, size=size.small)
 
 // Plot RSI overbought/oversold dots with extreme price highlighting
 // Regular overbought dots (red, tiny)
@@ -324,23 +332,23 @@ if barstate.islast
         label.new(bar_index, middle_ma, "Middle MA", color=color.green, textcolor=color.white, style=label.style_label_down)
 
 // Create alerts for signal fires
-if long_signal
+if long_signal and show_long_alerts
     alert("WTT_Waverider: LONG signal fired at " + str.tostring(close))
-if short_signal
+if short_signal and show_short_alerts
     alert("WTT_Waverider: SHORT signal fired at " + str.tostring(close))
 
 // Create alerts for diamond markers
-if track_higher_highs and not na(last_high) and high > last_high
+if track_higher_highs and not na(last_high) and high > last_high and show_diamond_alerts
     alert("WTT_Waverider: EXIT LONG - Higher High Diamond at " + str.tostring(high))
-if track_lower_lows and not na(last_low) and low < last_low
+if track_lower_lows and not na(last_low) and low < last_low and show_diamond_alerts
     alert("WTT_Waverider: EXIT SHORT - Lower Low Diamond at " + str.tostring(low))
 
 // Create alerts for RSI dots
-if rsi_overbought_signal and not (rsi_overbought_active and high == rsi_overbought_high)
+if rsi_overbought_signal and not (rsi_overbought_active and high == rsi_overbought_high) and show_rsi_alerts
     alert("WTT_Waverider: RSI OVERBOUGHT - Red Dot at " + str.tostring(close))
-if rsi_overbought_signal and rsi_overbought_active and high == rsi_overbought_high
+if rsi_overbought_signal and rsi_overbought_active and high == rsi_overbought_high and show_rsi_alerts
     alert("WTT_Waverider: RSI EXTREME OVERBOUGHT - Orange Dot at " + str.tostring(close))
-if rsi_oversold_signal and not (rsi_oversold_active and low == rsi_oversold_low)
+if rsi_oversold_signal and not (rsi_oversold_active and low == rsi_oversold_low) and show_rsi_alerts
     alert("WTT_Waverider: RSI OVERSOLD - Green Dot at " + str.tostring(close))
-if rsi_oversold_signal and rsi_oversold_active and low == rsi_oversold_low
+if rsi_oversold_signal and rsi_oversold_active and low == rsi_oversold_low and show_rsi_alerts
     alert("WTT_Waverider: RSI EXTREME OVERSOLD - Orange Dot at " + str.tostring(close)) 
