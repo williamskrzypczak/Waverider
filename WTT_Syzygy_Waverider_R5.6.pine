@@ -54,6 +54,8 @@ indicator("WTT_Syzygy_Waverider_R5.6", overlay=true)
 // R5.10 - Changed alert conditions to plain alerts
 // R5.11 - Added individual alert toggle controls
 // R5.12 - Increased price line width to 3
+// R5.13 - Changed diamond colors: higher highs to pink (fuchsia), lower lows to bright green (lime)
+// R5.14 - Changed diamond sizes from small to tiny
 // =============================================================================
 
 // Input parameters
@@ -213,10 +215,10 @@ plotshape(long_signal, title="Long Signal", location=location.belowbar, color=co
 plotshape(short_signal, title="Short Signal", location=location.abovebar, color=color.red, style=shape.triangledown, size=size.normal)
 
 // Plot higher high diamond markers
-plotshape(track_higher_highs and not na(last_high) and high > last_high, title="Higher High Diamond", location=location.abovebar, color=color.silver, style=shape.diamond, size=size.small)
+plotshape(track_higher_highs and not na(last_high) and high > last_high, title="Higher High Diamond", location=location.abovebar, color=color.fuchsia, style=shape.diamond, size=size.tiny)
 
 // Plot lower low diamond markers
-plotshape(track_lower_lows and not na(last_low) and low < last_low, title="Lower Low Diamond", location=location.belowbar, color=color.silver, style=shape.diamond, size=size.small)
+plotshape(track_lower_lows and not na(last_low) and low < last_low, title="Lower Low Diamond", location=location.belowbar, color=color.lime, style=shape.diamond, size=size.tiny)
 
 // Plot RSI overbought/oversold dots with extreme price highlighting
 // Regular overbought dots (red, tiny)
