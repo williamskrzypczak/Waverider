@@ -1,5 +1,5 @@
 //@version=5
-indicator("WTT_Syzygy_Waverider_R5.6", overlay=true)
+indicator("WTT_Syzygy_Waverider_R5.17", overlay=true)
 
 // =============================================================================
 // REVISION HISTORY
@@ -56,6 +56,16 @@ indicator("WTT_Syzygy_Waverider_R5.6", overlay=true)
 // R5.12 - Increased price line width to 3
 // R5.13 - Changed diamond colors: higher highs to pink (fuchsia), lower lows to bright green (lime)
 // R5.14 - Changed diamond sizes from small to tiny
+// R5.15 - Updated default RSI levels to balanced approach: overbought 65, oversold 35
+// R5.16 - Updated indicator name to reflect current revision R5.15
+// R5.17 - Updated default RSI levels to conservative approach: overbought 70, oversold 30
+// R5.18 - Reverted to clean state, removed debug code
+// R5.19 - Removed alert toggle controls, simplified to always-on alerts
+// R5.20 - Reversed diamond colors: higher highs to green, lower lows to pink
+// R5.21 - Removed tracking status row from HUD table
+// R5.22 - Implemented ATR-based diamond distance method
+// R5.23 - Switched to fixed pip-based diamond distance (3 pips default)
+// R5.24 - Added diamond distance monitoring to HUD table
 // =============================================================================
 
 // Input parameters
@@ -67,14 +77,12 @@ show_middle = input.bool(false, title="Show Middle MA", inline="Middle")
 volume_multiplier = input.float(1.5, title="Volume Threshold Multiplier", minval=1.0, step=0.1, inline="Volume")
 volume_length = input.int(20, title="Volume Average Period", minval=1, inline="Volume")
 rsi_length = input.int(14, title="RSI Length", minval=1, inline="RSI")
-rsi_overbought = input.int(60, title="RSI Overbought Level", minval=50, maxval=100, inline="RSI")
-rsi_oversold = input.int(40, title="RSI Oversold Level", minval=0, maxval=50, inline="RSI")
+rsi_overbought = input.int(70, title="RSI Overbought Level", minval=50, maxval=100, inline="RSI")
+rsi_oversold = input.int(30, title="RSI Oversold Level", minval=0, maxval=50, inline="RSI")
+diamond_pip_distance = input.int(3, title="Diamond Distance (Pips)", minval=1, maxval=100, inline="Diamonds")
 
-// Alert toggle controls
-show_long_alerts = input.bool(true, title="Long Signal Alerts", inline="Alerts")
-show_short_alerts = input.bool(true, title="Short Signal Alerts", inline="Alerts")
-show_diamond_alerts = input.bool(true, title="Diamond Exit Alerts", inline="Alerts")
-show_rsi_alerts = input.bool(true, title="RSI Dot Alerts", inline="Alerts")
+
+
 
 // RSI extreme price tracking variables
 var float rsi_overbought_high = na
@@ -85,10 +93,12 @@ var bool rsi_oversold_active = false
 // Higher high tracking after short signal
 var bool track_higher_highs = false
 var float last_high = na
+var float initial_high = na
 
 // Lower low tracking after long signal
 var bool track_lower_lows = false
 var float last_low = na
+var float initial_low = na
 
 // Calculate EMAs
 ema1 = ta.ema(close, ema1_length)
@@ -106,6 +116,13 @@ high_volume = volume > volume_threshold
 rsi_value = ta.rsi(close, rsi_length)
 rsi_overbought_signal = rsi_value > rsi_overbought
 rsi_oversold_signal = rsi_value < rsi_oversold
+
+// Calculate ATR and diamond distance
+atr_value = ta.atr(14)
+diamond_distance = diamond_pip_distance * 0.0001  // Convert pips to price units
+
+// DEBUG: Show diamond distance in table for monitoring
+diamond_display = str.tostring(diamond_pip_distance) + " pips"
 
 // Determine price line color based on position relative to EMAs
 price_color = if close > ema1 and close > ema2 and close > middle_ma
@@ -139,10 +156,6 @@ if rsi_oversold_signal
 else
     rsi_oversold_active := false
     rsi_oversold_low := na
-
-
-
-
 
 // Generate long/short signals (only first occurrence)
 long_condition = close > ema1 and close > ema2 and close > middle_ma and (close[1] <= ema1[1] or close[1] <= ema2[1] or close[1] <= middle_ma[1])
@@ -214,11 +227,15 @@ if long_condition
 plotshape(long_signal, title="Long Signal", location=location.belowbar, color=color.green, style=shape.triangleup, size=size.normal)
 plotshape(short_signal, title="Short Signal", location=location.abovebar, color=color.red, style=shape.triangledown, size=size.normal)
 
-// Plot higher high diamond markers
-plotshape(track_higher_highs and not na(last_high) and high > last_high, title="Higher High Diamond", location=location.abovebar, color=color.fuchsia, style=shape.diamond, size=size.tiny)
+// Plot higher high diamond markers (every break with ATR distance)
+plotshape(track_higher_highs and not na(initial_high) and high > initial_high + diamond_distance, title="Higher High Diamond", location=location.abovebar, color=color.lime, style=shape.diamond, size=size.small)
 
-// Plot lower low diamond markers
-plotshape(track_lower_lows and not na(last_low) and low < last_low, title="Lower Low Diamond", location=location.belowbar, color=color.lime, style=shape.diamond, size=size.tiny)
+// Plot lower low diamond markers (every break with ATR distance)
+plotshape(track_lower_lows and not na(initial_low) and low < initial_low - diamond_distance, title="Lower Low Diamond", location=location.belowbar, color=color.fuchsia, style=shape.diamond, size=size.small)
+
+
+
+
 
 // Plot RSI overbought/oversold dots with extreme price highlighting
 // Regular overbought dots (red, tiny)
@@ -241,10 +258,8 @@ if track_lower_lows and not na(last_low)
     if low < last_low
         last_low := low
 
-
-
 // Create Heads Up Display Table
-var table hud_table = table.new(position.top_right, 2, 7, bgcolor=color.new(color.purple, 80), border_width=2, border_color=color.blue)
+var table hud_table = table.new(position.top_right, 2, 8, bgcolor=color.new(color.purple, 80), border_width=2, border_color=color.blue)
 
 // Categorize volume levels (synchronized with signal threshold)
 volume_category = if volume < avg_volume * 0.8
@@ -271,7 +286,6 @@ else
     color.yellow
 
 // Calculate ATR trend
-atr_value = ta.atr(14)
 atr_prev = ta.atr(14)[1]
 atr_trend = if atr_value > atr_prev * 1.05
     "Rising"
@@ -301,11 +315,21 @@ if long_signal
     track_higher_highs := false  // Stop tracking higher highs
     track_lower_lows := true      // Start tracking lower lows
     last_low := low
+    initial_low := low
 if short_signal
     current_signal := "SHORT"
     track_higher_highs := true   // Start tracking higher highs
     track_lower_lows := false     // Stop tracking lower lows
     last_high := high
+    initial_high := high
+
+// Reset tracking when no signal conditions are met
+if not long_condition and not short_condition
+    track_higher_highs := false
+    track_lower_lows := false
+    current_signal := "NONE"
+    initial_high := na
+    initial_low := na
 
 // Update table
 if barstate.islast
@@ -315,14 +339,16 @@ if barstate.islast
     table.cell(hud_table, 1, 1, volume_category, text_color=volume_color, bgcolor=color.new(color.purple, 80), text_size=size.normal)
     table.cell(hud_table, 0, 2, "RSI Value", text_color=color.white, bgcolor=color.new(color.purple, 80), text_size=size.normal)
     table.cell(hud_table, 1, 2, str.tostring(math.round(rsi_value, 1)), text_color=rsi_text_color, bgcolor=color.new(color.purple, 80), text_size=size.normal)
-    table.cell(hud_table, 0, 3, "Trend", text_color=color.white, bgcolor=color.new(color.purple, 80), text_size=size.normal)
-    table.cell(hud_table, 1, 3, atr_trend, text_color=atr_color, bgcolor=color.new(color.purple, 80), text_size=size.normal)
-    table.cell(hud_table, 0, 4, "Long Win Rate", text_color=color.white, bgcolor=color.new(color.purple, 80), text_size=size.normal)
-    table.cell(hud_table, 1, 4, str.tostring(math.round(long_win_rate, 1)) + "% (" + str.tostring(long_wins) + "/" + str.tostring(long_signals) + ")", text_color=long_win_rate > 50 ? color.green : color.red, bgcolor=color.new(color.purple, 80), text_size=size.normal)
-    table.cell(hud_table, 0, 5, "Short Win Rate", text_color=color.white, bgcolor=color.new(color.purple, 80), text_size=size.normal)
-    table.cell(hud_table, 1, 5, str.tostring(math.round(short_win_rate, 1)) + "% (" + str.tostring(short_wins) + "/" + str.tostring(short_signals) + ")", text_color=short_win_rate > 50 ? color.green : color.red, bgcolor=color.new(color.purple, 80), text_size=size.normal)
-    table.cell(hud_table, 0, 6, "Current Signal", text_color=color.white, bgcolor=color.new(color.purple, 80), text_size=size.normal)
-    table.cell(hud_table, 1, 6, current_signal, text_color=current_signal == "LONG" ? color.green : current_signal == "SHORT" ? color.red : color.gray, bgcolor=color.new(color.purple, 80), text_size=size.normal)
+    table.cell(hud_table, 0, 3, "Diamond Distance", text_color=color.white, bgcolor=color.new(color.purple, 80), text_size=size.normal)
+    table.cell(hud_table, 1, 3, diamond_display, text_color=color.yellow, bgcolor=color.new(color.purple, 80), text_size=size.normal)
+    table.cell(hud_table, 0, 4, "Trend", text_color=color.white, bgcolor=color.new(color.purple, 80), text_size=size.normal)
+    table.cell(hud_table, 1, 4, atr_trend, text_color=atr_color, bgcolor=color.new(color.purple, 80), text_size=size.normal)
+    table.cell(hud_table, 0, 5, "Long Win Rate", text_color=color.white, bgcolor=color.new(color.purple, 80), text_size=size.normal)
+    table.cell(hud_table, 1, 5, str.tostring(math.round(long_win_rate, 1)) + "% (" + str.tostring(long_wins) + "/" + str.tostring(long_signals) + ")", text_color=long_win_rate > 50 ? color.green : color.red, bgcolor=color.new(color.purple, 80), text_size=size.normal)
+    table.cell(hud_table, 0, 6, "Short Win Rate", text_color=color.white, bgcolor=color.new(color.purple, 80), text_size=size.normal)
+    table.cell(hud_table, 1, 6, str.tostring(math.round(short_win_rate, 1)) + "% (" + str.tostring(short_wins) + "/" + str.tostring(short_signals) + ")", text_color=short_win_rate > 50 ? color.green : color.red, bgcolor=color.new(color.purple, 80), text_size=size.normal)
+    table.cell(hud_table, 0, 7, "Current Signal", text_color=color.white, bgcolor=color.new(color.purple, 80), text_size=size.normal)
+    table.cell(hud_table, 1, 7, current_signal, text_color=current_signal == "LONG" ? color.green : current_signal == "SHORT" ? color.red : color.gray, bgcolor=color.new(color.purple, 80), text_size=size.normal)
 
 // Add labels for clarity (only if lines are enabled)
 if barstate.islast
@@ -334,23 +360,23 @@ if barstate.islast
         label.new(bar_index, middle_ma, "Middle MA", color=color.green, textcolor=color.white, style=label.style_label_down)
 
 // Create alerts for signal fires
-if long_signal and show_long_alerts
+if long_signal
     alert("WTT_Waverider: LONG signal fired at " + str.tostring(close))
-if short_signal and show_short_alerts
+if short_signal
     alert("WTT_Waverider: SHORT signal fired at " + str.tostring(close))
 
 // Create alerts for diamond markers
-if track_higher_highs and not na(last_high) and high > last_high and show_diamond_alerts
+if track_higher_highs and not na(initial_high) and high > initial_high + diamond_distance
     alert("WTT_Waverider: EXIT LONG - Higher High Diamond at " + str.tostring(high))
-if track_lower_lows and not na(last_low) and low < last_low and show_diamond_alerts
+if track_lower_lows and not na(initial_low) and low < initial_low - diamond_distance
     alert("WTT_Waverider: EXIT SHORT - Lower Low Diamond at " + str.tostring(low))
 
 // Create alerts for RSI dots
-if rsi_overbought_signal and not (rsi_overbought_active and high == rsi_overbought_high) and show_rsi_alerts
+if rsi_overbought_signal and not (rsi_overbought_active and high == rsi_overbought_high)
     alert("WTT_Waverider: RSI OVERBOUGHT - Red Dot at " + str.tostring(close))
-if rsi_overbought_signal and rsi_overbought_active and high == rsi_overbought_high and show_rsi_alerts
+if rsi_overbought_signal and rsi_overbought_active and high == rsi_overbought_high
     alert("WTT_Waverider: RSI EXTREME OVERBOUGHT - Orange Dot at " + str.tostring(close))
-if rsi_oversold_signal and not (rsi_oversold_active and low == rsi_oversold_low) and show_rsi_alerts
+if rsi_oversold_signal and not (rsi_oversold_active and low == rsi_oversold_low)
     alert("WTT_Waverider: RSI OVERSOLD - Green Dot at " + str.tostring(close))
-if rsi_oversold_signal and rsi_oversold_active and low == rsi_oversold_low and show_rsi_alerts
+if rsi_oversold_signal and rsi_oversold_active and low == rsi_oversold_low
     alert("WTT_Waverider: RSI EXTREME OVERSOLD - Orange Dot at " + str.tostring(close)) 
