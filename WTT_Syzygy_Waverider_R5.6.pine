@@ -1,5 +1,5 @@
 //@version=5
-indicator("WTT_Syzygy_Waverider_R5.17", overlay=true)
+indicator("WTT_Syzygy_Waverider_R5.25", overlay=true)
 
 // =============================================================================
 // REVISION HISTORY
