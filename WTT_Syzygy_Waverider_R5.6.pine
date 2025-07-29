@@ -66,6 +66,7 @@ indicator("WTT_Syzygy_Waverider_R5.17", overlay=true)
 // R5.22 - Implemented ATR-based diamond distance method
 // R5.23 - Switched to fixed pip-based diamond distance (3 pips default)
 // R5.24 - Added diamond distance monitoring to HUD table
+// R5.25 - Changed "Current Signal" to "Last Signal" in HUD table, improved signal persistence logic
 // =============================================================================
 
 // Input parameters
@@ -306,18 +307,18 @@ else
 long_win_rate = long_signals > 0 ? (long_wins / long_signals) * 100 : 0.0
 short_win_rate = short_signals > 0 ? (short_wins / short_signals) * 100 : 0.0
 
-// Track current signal persistently
-var string current_signal = "NONE"
+// Track last signal persistently
+var string last_signal = "NONE"
 
-// Update current signal when new signals fire
+// Update last signal when new signals fire
 if long_signal
-    current_signal := "LONG"
+    last_signal := "LONG"
     track_higher_highs := false  // Stop tracking higher highs
     track_lower_lows := true      // Start tracking lower lows
     last_low := low
     initial_low := low
 if short_signal
-    current_signal := "SHORT"
+    last_signal := "SHORT"
     track_higher_highs := true   // Start tracking higher highs
     track_lower_lows := false     // Stop tracking lower lows
     last_high := high
@@ -327,7 +328,6 @@ if short_signal
 if not long_condition and not short_condition
     track_higher_highs := false
     track_lower_lows := false
-    current_signal := "NONE"
     initial_high := na
     initial_low := na
 
@@ -347,8 +347,8 @@ if barstate.islast
     table.cell(hud_table, 1, 5, str.tostring(math.round(long_win_rate, 1)) + "% (" + str.tostring(long_wins) + "/" + str.tostring(long_signals) + ")", text_color=long_win_rate > 50 ? color.green : color.red, bgcolor=color.new(color.purple, 80), text_size=size.normal)
     table.cell(hud_table, 0, 6, "Short Win Rate", text_color=color.white, bgcolor=color.new(color.purple, 80), text_size=size.normal)
     table.cell(hud_table, 1, 6, str.tostring(math.round(short_win_rate, 1)) + "% (" + str.tostring(short_wins) + "/" + str.tostring(short_signals) + ")", text_color=short_win_rate > 50 ? color.green : color.red, bgcolor=color.new(color.purple, 80), text_size=size.normal)
-    table.cell(hud_table, 0, 7, "Current Signal", text_color=color.white, bgcolor=color.new(color.purple, 80), text_size=size.normal)
-    table.cell(hud_table, 1, 7, current_signal, text_color=current_signal == "LONG" ? color.green : current_signal == "SHORT" ? color.red : color.gray, bgcolor=color.new(color.purple, 80), text_size=size.normal)
+    table.cell(hud_table, 0, 7, "Last Signal", text_color=color.white, bgcolor=color.new(color.purple, 80), text_size=size.normal)
+    table.cell(hud_table, 1, 7, last_signal, text_color=last_signal == "LONG" ? color.green : last_signal == "SHORT" ? color.red : color.gray, bgcolor=color.new(color.purple, 80), text_size=size.normal)
 
 // Add labels for clarity (only if lines are enabled)
 if barstate.islast
